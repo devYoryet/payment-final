@@ -14,6 +14,6 @@ public interface SalonFeignClient {
     public ResponseEntity<SalonDTO> getSalonByOwner(
             @RequestHeader("Authorization")String jwt) throws Exception;
 
-    @GetMapping("/api/salon/{salonId}")
+    @GetMapping("/api/salons/{salonId}")
     public ResponseEntity<SalonDTO> getSalonById(@PathVariable Long salonId) throws Exception;
 }
