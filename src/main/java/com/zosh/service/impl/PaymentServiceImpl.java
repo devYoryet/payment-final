@@ -46,36 +46,91 @@ public class PaymentServiceImpl implements PaymentService {
 
     /* ───────────────────────── CREATE ORDER ───────────────────────── */
     @Override
-    public PaymentLinkResponse createOrder(UserDTO user,
-            BookingDTO booking,
-            PaymentMethod paymentMethod)
+    public PaymentLinkResponse createOrder(UserDTO user, BookingDTO booking, PaymentMethod paymentMethod)
             throws RazorpayException, UserException, StripeException {
 
-        // Total price como BigDecimal (2 decimales)
-        BigDecimal total = booking.getTotalPrice().setScale(2, RoundingMode.HALF_UP);
+        System.out.println("🇨🇱 PAYMENT CHILE - createOrder");
+        System.out.println("   Usuario: " + user.getEmail());
+        System.out.println("   Booking ID: " + booking.getId());
+        System.out.println("   Total: $" + booking.getTotalPrice() + " CLP");
+        System.out.println("   Método: " + paymentMethod);
 
-        PaymentOrder order = new PaymentOrder();
-        order.setUserId(user.getId());
-        order.setAmount(total); // ahora BigDecimal en la entidad
-        order.setBookingId(booking.getId());
-        order.setSalonId(booking.getSalonId());
-        order.setPaymentMethod(paymentMethod);
+        try {
+            // Total price como BigDecimal (2 decimales)
+            BigDecimal total = booking.getTotalPrice().setScale(2, RoundingMode.HALF_UP);
 
-        PaymentOrder saved = paymentOrderRepository.save(order);
-        PaymentLinkResponse res = new PaymentLinkResponse();
+            PaymentOrder order = new PaymentOrder();
+            order.setUserId(user.getId());
+            order.setAmount(total);
+            order.setBookingId(booking.getId());
+            order.setSalonId(booking.getSalonId());
+            order.setPaymentMethod(paymentMethod);
 
-        Long majorUnits = total.longValueExact(); // 25 000.50 → 25000 (CLP) / 120.75 → 120 (USD) si decimales
+            PaymentOrder saved = paymentOrderRepository.save(order);
+            System.out.println("✅ PaymentOrder guardado con ID: " + saved.getId());
 
-        if (paymentMethod == PaymentMethod.RAZORPAY) {
-            PaymentLink link = createRazorpayPaymentLink(user, majorUnits, saved.getId());
-            res.setPayment_link_url(link.get("short_url"));
-            saved.setPaymentLinkId(link.get("id"));
+            PaymentLinkResponse res = new PaymentLinkResponse();
+
+            // 🇨🇱 CREAR MOCK PAYMENT LINK CHILENO
+            String mockPaymentUrl = createChileanMockPaymentLink(user, total, saved.getId(), paymentMethod);
+            String mockPaymentId = "CHILE_PAY_" + saved.getId() + "_" + System.currentTimeMillis();
+
+            res.setPayment_link_url(mockPaymentUrl);
+            res.setPayment_link_id(mockPaymentId);
+
+            saved.setPaymentLinkId(mockPaymentId);
             paymentOrderRepository.save(saved);
-        } else { // STRIPE u otro
-            String url = createStripePaymentLink(user, majorUnits, saved.getId());
-            res.setPayment_link_url(url);
+
+            System.out.println("✅ Mock Payment Link Chileno creado:");
+            System.out.println("   URL: " + mockPaymentUrl);
+            System.out.println("   ID: " + mockPaymentId);
+
+            return res;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error en createOrder: " + e.getMessage());
+            e.printStackTrace();
+            throw new UserException("Error procesando pago: " + e.getMessage());
         }
-        return res;
+    }
+
+    // 🇨🇱 NUEVO MÉTODO: CREAR MOCK PAYMENT LINK CHILENO
+    private String createChileanMockPaymentLink(UserDTO user, BigDecimal amount, Long orderId, PaymentMethod method) {
+
+        System.out.println("🇨🇱 Creando mock payment chileno...");
+
+        // Determinar el proveedor según el método
+        String provider = determineChileanProvider(method);
+
+        // Crear URL con parámetros
+        String baseUrl = "http://localhost:3000/payment/chile-mock";
+        String params = String.format("?orderId=%d&amount=%s&provider=%s&email=%s&name=%s",
+                orderId,
+                amount.toString(),
+                provider,
+                user.getEmail(),
+                user.getFullName().replace(" ", "+"));
+
+        String finalUrl = baseUrl + params;
+
+        System.out.println("🇨🇱 Mock URL generada: " + finalUrl);
+
+        return finalUrl;
+    }
+
+    // 🇨🇱 DETERMINAR PROVEEDOR CHILENO
+    private String determineChileanProvider(PaymentMethod method) {
+        switch (method) {
+            case RAZORPAY:
+                return "webpay"; // Usar WebPay como default
+            case STRIPE:
+                return "onepay";
+            default:
+                // Rotar entre proveedores chilenos
+                String[] providers = { "webpay", "onepay", "mercadopago", "khipu", "flow" };
+                int index = (int) (System.currentTimeMillis() % providers.length);
+                return providers[index];
+        }
     }
 
     /* ───────────────────────── FETCHERS ───────────────────────── */
@@ -94,96 +149,68 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     /* ───────────────────────── CONFIRM / CAPTURE ───────────────────────── */
+    // ✅ ACTUALIZAR MÉTODO DE PROCESAMIENTO
     @Override
-    public Boolean ProceedPaymentOrder(PaymentOrder paymentOrder,
-            String paymentId,
-            String paymentLinkId) throws RazorpayException {
+    public Boolean ProceedPaymentOrder(PaymentOrder paymentOrder, String paymentId, String paymentLinkId)
+            throws RazorpayException {
 
-        if (paymentOrder.getStatus() != PaymentOrderStatus.PENDING)
+        System.out.println("🇨🇱 CHILE PAYMENT - ProceedPaymentOrder");
+        System.out.println("   Order ID: " + paymentOrder.getId());
+        System.out.println("   Payment ID: " + paymentId);
+        System.out.println("   Status actual: " + paymentOrder.getStatus());
+
+        if (paymentOrder.getStatus() != PaymentOrderStatus.PENDING) {
+            System.out.println("⚠️ Orden ya procesada");
             return false;
+        }
 
-        if (paymentOrder.getPaymentMethod() == PaymentMethod.RAZORPAY) {
-            RazorpayClient rz = new RazorpayClient(apiKey, apiSecret);
-            Payment pay = rz.payments.fetch(paymentId);
+        try {
+            // 🇨🇱 SIMULAR PAGO EXITOSO CHILENO
+            System.out.println("✅ Simulando pago exitoso chileno...");
 
-            if ("captured".equals(pay.get("status"))) {
-                notificationEventProducer.sentNotificationEvent(
-                        paymentOrder.getBookingId(),
-                        paymentOrder.getUserId(),
-                        paymentOrder.getSalonId());
+            // Enviar notificaciones
+            notificationEventProducer.sentNotificationEvent(
+                    paymentOrder.getBookingId(),
+                    paymentOrder.getUserId(),
+                    paymentOrder.getSalonId());
 
-                bookingEventProducer.sentBookingUpdateEvent(paymentOrder);
-                paymentOrder.setStatus(PaymentOrderStatus.SUCCESS);
-                paymentOrderRepository.save(paymentOrder);
-                return true;
-            }
+            // Actualizar booking
+            bookingEventProducer.sentBookingUpdateEvent(paymentOrder);
+
+            // Marcar como exitoso
+            paymentOrder.setStatus(PaymentOrderStatus.SUCCESS);
+            paymentOrderRepository.save(paymentOrder);
+
+            System.out.println("✅ Pago chileno procesado exitosamente");
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error procesando pago chileno: " + e.getMessage());
             paymentOrder.setStatus(PaymentOrderStatus.FAILED);
             paymentOrderRepository.save(paymentOrder);
             return false;
         }
-
-        // Stripe confirmado vía webhook
-        paymentOrder.setStatus(PaymentOrderStatus.SUCCESS);
-        paymentOrderRepository.save(paymentOrder);
-        return true;
     }
 
     /* ───────────────────────── RAZORPAY ───────────────────────── */
     @Override
-    public PaymentLink createRazorpayPaymentLink(UserDTO user,
-            Long amountMajorUnits,
-            Long orderId) throws RazorpayException {
+    public PaymentLink createRazorpayPaymentLink(UserDTO user, Long amountMajorUnits, Long orderId)
+            throws RazorpayException {
 
-        long paise = amountMajorUnits * 100; // INR → paise
+        // 🎭 MOCK SIMPLE PARA COMPATIBILIDAD
+        JSONObject mockResponse = new JSONObject();
+        mockResponse.put("id", "mock_razorpay_" + orderId);
+        mockResponse.put("short_url", "http://localhost:3000/payment-success/" + orderId);
 
-        RazorpayClient razorpay = new RazorpayClient(apiKey, apiSecret);
-
-        JSONObject req = new JSONObject();
-        req.put("amount", paise);
-        req.put("currency", "INR");
-
-        JSONObject customer = new JSONObject();
-        customer.put("name", user.getFullName());
-        customer.put("email", user.getEmail());
-        req.put("customer", customer);
-
-        JSONObject notify = new JSONObject();
-        notify.put("email", true);
-        req.put("notify", notify);
-
-        req.put("reminder_enable", true);
-        req.put("callback_url", "http://localhost:3000/payment-success/" + orderId);
-        req.put("callback_method", "get");
-
-        return razorpay.paymentLink.create(req);
+        return new PaymentLink(mockResponse);
     }
 
     /* ───────────────────────── STRIPE ───────────────────────── */
     @Override
-    public String createStripePaymentLink(UserDTO user,
-            Long amountMajorUnits,
-            Long orderId) throws StripeException {
-        Stripe.apiKey = stripeSecretKey;
+    public String createStripePaymentLink(UserDTO user, Long amountMajorUnits, Long orderId)
+            throws StripeException {
 
-        long cents = amountMajorUnits * 100; // USD → cents
-
-        SessionCreateParams params = SessionCreateParams.builder()
-                .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
-                .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl("http://localhost:3000/payment-success/" + orderId)
-                .setCancelUrl("http://localhost:3000/payment/cancel")
-                .addLineItem(SessionCreateParams.LineItem.builder()
-                        .setQuantity(1L)
-                        .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
-                                .setCurrency("usd")
-                                .setUnitAmount(cents)
-                                .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                        .setName("Top up wallet")
-                                        .build())
-                                .build())
-                        .build())
-                .build();
-
-        return Session.create(params).getUrl();
+        // 🎭 MOCK SIMPLE PARA COMPATIBILIDAD
+        return "http://localhost:3000/payment-success/" + orderId;
     }
 }
