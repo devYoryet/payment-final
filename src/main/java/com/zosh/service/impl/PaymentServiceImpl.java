@@ -213,4 +213,10 @@ public class PaymentServiceImpl implements PaymentService {
         // 🎭 MOCK SIMPLE PARA COMPATIBILIDAD
         return "http://localhost:3000/payment-success/" + orderId;
     }
+
+    @Override
+    public Boolean proceedChileanPayment(String paymentId, String paymentLinkId) throws Exception {
+        PaymentOrder paymentOrder = getPaymentOrderByPaymentId(paymentLinkId);
+        return ProceedPaymentOrder(paymentOrder, paymentId, paymentLinkId);
+    }
 }
