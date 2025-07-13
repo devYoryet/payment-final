@@ -3,7 +3,7 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-/src/main/resources
+/src/main/resources/wallet_tlz3t5ba8btq7pbd
 
 ### STS ###
 .apt_generated

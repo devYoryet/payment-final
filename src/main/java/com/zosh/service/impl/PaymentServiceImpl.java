@@ -103,7 +103,7 @@ public class PaymentServiceImpl implements PaymentService {
         String provider = determineChileanProvider(method);
 
         // Crear URL con parámetros
-        String baseUrl = "http://localhost:3000/payment/chile-mock";
+        String baseUrl = "https://front-final-nine.vercel.app/payment/chile-mock";
         String params = String.format("?orderId=%d&amount=%s&provider=%s&email=%s&name=%s",
                 orderId,
                 amount.toString(),
@@ -200,7 +200,7 @@ public class PaymentServiceImpl implements PaymentService {
         // 🎭 MOCK SIMPLE PARA COMPATIBILIDAD
         JSONObject mockResponse = new JSONObject();
         mockResponse.put("id", "mock_razorpay_" + orderId);
-        mockResponse.put("short_url", "http://localhost:3000/payment-success/" + orderId);
+        mockResponse.put("short_url", "https://front-final-nine.vercel.app/payment-success/" + orderId);
 
         return new PaymentLink(mockResponse);
     }
@@ -211,7 +211,7 @@ public class PaymentServiceImpl implements PaymentService {
             throws StripeException {
 
         // 🎭 MOCK SIMPLE PARA COMPATIBILIDAD
-        return "http://localhost:3000/payment-success/" + orderId;
+        return "https://front-final-nine.vercel.app/payment-success/" + orderId;
     }
 
     @Override
