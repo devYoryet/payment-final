@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "PAYMENT_ORDER")
@@ -46,4 +47,9 @@ public class PaymentOrder {
 
     @Column(name = "SALON_ID", nullable = false)
     private Long salonId;
+
+    public void setUpdatedAt(LocalDateTime now) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setUpdatedAt'");
+    }
 }

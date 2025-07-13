@@ -96,26 +96,30 @@ public class PaymentServiceImpl implements PaymentService {
 
     // 🇨🇱 NUEVO MÉTODO: CREAR MOCK PAYMENT LINK CHILENO
     private String createChileanMockPaymentLink(UserDTO user, BigDecimal amount, Long orderId, PaymentMethod method) {
-
         System.out.println("🇨🇱 Creando mock payment chileno...");
+        System.out.println("   Usuario: " + user.getEmail());
+        System.out.println("   Monto: " + amount);
+        System.out.println("   Orden: " + orderId);
+        System.out.println("   Método: " + method);
 
         // Determinar el proveedor según el método
         String provider = determineChileanProvider(method);
 
-        // Crear URL con parámetros
+        // ✅ USAR URL DE FRONTEND CORRECTA (VERCEL)
         String baseUrl = "https://front-final-nine.vercel.app/payment/chile-mock";
-        String params = String.format("?orderId=%d&amount=%s&provider=%s&email=%s&name=%s",
+
+        String params = String.format(
+                "?orderId=%d&amount=%.2f&provider=%s&email=%s&name=%s",
                 orderId,
-                amount.toString(),
+                amount,
                 provider,
                 user.getEmail(),
-                user.getFullName().replace(" ", "+"));
+                user.getFullName() != null ? user.getFullName() : user.getEmail());
 
-        String finalUrl = baseUrl + params;
+        String fullUrl = baseUrl + params;
+        System.out.println("🔗 URL generada: " + fullUrl);
 
-        System.out.println("🇨🇱 Mock URL generada: " + finalUrl);
-
-        return finalUrl;
+        return fullUrl;
     }
 
     // 🇨🇱 DETERMINAR PROVEEDOR CHILENO
