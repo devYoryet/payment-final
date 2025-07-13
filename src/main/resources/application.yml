@@ -1,0 +1,101 @@
+server:
+  port: ${SERVER_PORT:8086}  # ✅ CORREGIDO - era 8085
+
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:payment}
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:oracle:thin:@localhost:1521:xe}
+    username: ${SPRING_DATASOURCE_USERNAME:dev_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:dev_pass}
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      maximum-pool-size: ${HIKARI_MAXIMUM_POOL_SIZE:5}
+      minimum-idle: ${HIKARI_MINIMUM_IDLE:1}
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:60000}
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:300000}
+      max-lifetime: ${HIKARI_MAX_LIFETIME:900000}
+      leak-detection-threshold: ${HIKARI_LEAK_DETECTION_THRESHOLD:60000}
+      auto-commit: ${SPRING_DATASOURCE_HIKARI_AUTO_COMMIT:true}  # ✅ AGREGADO
+
+  jpa:
+    database-platform: org.hibernate.dialect.OracleDialect
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}  # ✅ CAMBIADO
+    properties:
+      hibernate:
+        format_sql: false  # ✅ CAMBIADO
+        dialect: org.hibernate.dialect.OracleDialect
+        jdbc:
+          time_zone: UTC
+          batch_size: 10
+        # ✅ ELIMINADO provider_disables_autocommit: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbit}  # ✅ CORREGIDO
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:salonuser}  # ✅ CORREGIDO
+    password: ${RABBITMQ_PASSWORD:salonpass123}  # ✅ CORREGIDO
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:salon-booking}
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  health:
+    readiness-state:
+      enabled: true
+    liveness-state:
+      enabled: true
+  endpoint:
+    shutdown:
+      access: read-only
+    health:
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+endpoints:
+  shutdown:
+    enabled: true
+
+# ✅ ELIMINADO razorpay (solo Stripe)
+stripe:
+  api:
+    key: ${STRIPE_API_KEY}
+
+
+eureka:
+  instance:
+    preferIpAddress: true
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:payment}  # ✅ CORREGIDO
+  client:
+    fetchRegistry: true
+    registerWithEureka: true
+    serviceUrl:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8070/eureka/}
+
+info:
+  app:
+    name: "Payment Service"
+    description: "Payment Service API For Salon Booking System"
+    version: "1.0.0"
