@@ -1,3 +1,4 @@
+// src/main/java/com/zosh/modal/PaymentOrder.java
 package com.zosh.modal;
 
 import com.zosh.domain.PaymentMethod;
@@ -8,14 +9,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "PAYMENT_ORDER")
-@SequenceGenerator( // declara el generador
-        name = "payment_order_seq", // alias JPA
-        sequenceName = "PAYMENT_ORDER_SEQ", // nombre que hibernate creará
-        allocationSize = 1)
+@Table(name = "payment_orders")
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
@@ -23,33 +19,31 @@ public class PaymentOrder {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "payment_order_seq")
+    @SequenceGenerator(name = "payment_order_seq", sequenceName = "payment_orders_seq", allocationSize = 1)
     private Long id;
 
-    @Column(nullable = false, precision = 18, scale = 2)
+    // ✅ CORREGIR: Usar BigDecimal en lugar de Long
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 20, nullable = false)
-    private PaymentOrderStatus status = PaymentOrderStatus.PENDING;
-
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20, nullable = false)
+    @Column(name = "payment_method", nullable = false)
     private PaymentMethod paymentMethod;
 
-    @Column(name = "PAYMENT_LINK_ID", length = 255)
+    @Column(name = "payment_link_id")
     private String paymentLinkId;
 
-    @Column(name = "USER_ID")
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "BOOKING_ID")
+    @Column(name = "booking_id", nullable = false)
     private Long bookingId;
 
-    @Column(name = "SALON_ID", nullable = false)
+    @Column(name = "salon_id", nullable = false)
     private Long salonId;
 
-    public void setUpdatedAt(LocalDateTime now) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setUpdatedAt'");
-    }
+    // ✅ AGREGAR: Campo status que faltaba
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private PaymentOrderStatus status = PaymentOrderStatus.PENDING;
 }

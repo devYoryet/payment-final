@@ -1,3 +1,4 @@
+// src/main/java/com/zosh/service/impl/PaymentServiceImpl.java
 package com.zosh.service.impl;
 
 import com.razorpay.Payment;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -61,10 +63,11 @@ public class PaymentServiceImpl implements PaymentService {
 
             PaymentOrder order = new PaymentOrder();
             order.setUserId(user.getId());
-            order.setAmount(total);
+            order.setAmount(total); // ✅ Ya es BigDecimal
             order.setBookingId(booking.getId());
             order.setSalonId(booking.getSalonId());
             order.setPaymentMethod(paymentMethod);
+            order.setStatus(PaymentOrderStatus.PENDING); // ✅ Estado inicial
 
             PaymentOrder saved = paymentOrderRepository.save(order);
             System.out.println("✅ PaymentOrder guardado con ID: " + saved.getId());
@@ -73,17 +76,20 @@ public class PaymentServiceImpl implements PaymentService {
 
             // 🇨🇱 CREAR MOCK PAYMENT LINK CHILENO
             String mockPaymentUrl = createChileanMockPaymentLink(user, total, saved.getId(), paymentMethod);
+
+            // ✅ FORMATO CONSISTENTE para paymentLinkId
             String mockPaymentId = "CHILE_PAY_" + saved.getId() + "_" + System.currentTimeMillis();
 
             res.setPayment_link_url(mockPaymentUrl);
             res.setPayment_link_id(mockPaymentId);
 
+            // ✅ GUARDAR EL paymentLinkId en la BD
             saved.setPaymentLinkId(mockPaymentId);
             paymentOrderRepository.save(saved);
 
             System.out.println("✅ Mock Payment Link Chileno creado:");
             System.out.println("   URL: " + mockPaymentUrl);
-            System.out.println("   ID: " + mockPaymentId);
+            System.out.println("   PaymentLinkId: " + mockPaymentId);
 
             return res;
 
@@ -144,16 +150,65 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new Exception("Payment order not found with id " + id));
     }
 
+    // ✅ MÉTODO MEJORADO CON BÚSQUEDA INTELIGENTE
     @Override
     public PaymentOrder getPaymentOrderByPaymentId(String paymentLinkId) throws Exception {
+        System.out.println("🔍 Buscando PaymentOrder con paymentLinkId: " + paymentLinkId);
+
+        // 🚀 PRIMERA BÚSQUEDA: Buscar exactamente como viene
         PaymentOrder po = paymentOrderRepository.findByPaymentLinkId(paymentLinkId);
-        if (po == null)
-            throw new Exception("Payment order not found with id " + paymentLinkId);
-        return po;
+
+        if (po != null) {
+            System.out.println("✅ PaymentOrder encontrado (búsqueda exacta): " + po.getId());
+            return po;
+        }
+
+        // 🇨🇱 SEGUNDA BÚSQUEDA: Si es pago chileno con formato "chile_XX"
+        if (paymentLinkId.startsWith("chile_")) {
+            System.out.println("🇨🇱 Detectado formato chile_, buscando por orderId...");
+
+            try {
+                // Extraer orderId de "chile_65" -> 65
+                String orderIdStr = paymentLinkId.replace("chile_", "");
+                Long orderId = Long.parseLong(orderIdStr);
+
+                System.out.println("📝 Buscando PaymentOrder por orderId: " + orderId);
+                po = paymentOrderRepository.findById(orderId).orElse(null);
+
+                if (po != null) {
+                    System.out.println("✅ PaymentOrder encontrado por orderId: " + po.getId());
+                    System.out.println("   PaymentLinkId en BD: " + po.getPaymentLinkId());
+                    return po;
+                }
+
+            } catch (NumberFormatException e) {
+                System.out.println("⚠️ No se pudo extraer orderId de: " + paymentLinkId);
+            }
+        }
+
+        // 🚀 TERCERA BÚSQUEDA: Buscar todos los PaymentOrders y hacer debug
+        System.out.println("🔄 Búsqueda de emergencia - listando todos los PaymentOrders...");
+        List<PaymentOrder> allOrders = paymentOrderRepository.findAll();
+
+        System.out.println("📋 PaymentOrders en BD (" + allOrders.size() + " total):");
+        for (PaymentOrder order : allOrders) {
+            System.out.println("   - ID: " + order.getId() +
+                    ", PaymentLinkId: '" + order.getPaymentLinkId() +
+                    "', Status: " + order.getStatus());
+
+            // Buscar por similitud
+            if (order.getPaymentLinkId() != null &&
+                    order.getPaymentLinkId().contains(paymentLinkId.replace("chile_", ""))) {
+                System.out.println("✅ Encontrado por similitud!");
+                return order;
+            }
+        }
+
+        System.err.println("❌ PaymentOrder NO encontrado con paymentLinkId: " + paymentLinkId);
+        throw new Exception("Payment order not found with id " + paymentLinkId);
     }
 
     /* ───────────────────────── CONFIRM / CAPTURE ───────────────────────── */
-    // ✅ ACTUALIZAR MÉTODO DE PROCESAMIENTO
     @Override
     public Boolean ProceedPaymentOrder(PaymentOrder paymentOrder, String paymentId, String paymentLinkId)
             throws RazorpayException {
@@ -161,10 +216,11 @@ public class PaymentServiceImpl implements PaymentService {
         System.out.println("🇨🇱 CHILE PAYMENT - ProceedPaymentOrder");
         System.out.println("   Order ID: " + paymentOrder.getId());
         System.out.println("   Payment ID: " + paymentId);
+        System.out.println("   PaymentLinkId: " + paymentLinkId);
         System.out.println("   Status actual: " + paymentOrder.getStatus());
 
         if (paymentOrder.getStatus() != PaymentOrderStatus.PENDING) {
-            System.out.println("⚠️ Orden ya procesada");
+            System.out.println("⚠️ Orden ya procesada con status: " + paymentOrder.getStatus());
             return false;
         }
 
