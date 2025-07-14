@@ -1,6 +1,5 @@
 package com.zosh.exception;
 
-
 import com.zosh.payload.response.ExceptionResponse;
 import org.springframework.http.ResponseEntity;
 
@@ -13,17 +12,15 @@ import java.time.LocalDateTime;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-
 	@ExceptionHandler(UserException.class)
-	public ResponseEntity<ExceptionResponse> UserExceptionHandler(
-			ReviewException ex, WebRequest req) {
+	public ResponseEntity<ExceptionResponse> handleUserException(
+			UserException ex, WebRequest req) {
 		ExceptionResponse response = new ExceptionResponse(
 				ex.getMessage(),
-				req.getDescription(false), LocalDateTime.now());
-		return ResponseEntity.ok(response);
+				req.getDescription(false),
+				LocalDateTime.now());
+		return ResponseEntity.badRequest().body(response);
 	}
-
-
 
 	@ExceptionHandler(ReviewException.class)
 	public ResponseEntity<ExceptionResponse> ReviewExistExceptionHandler(
@@ -39,7 +36,7 @@ public class GlobalExceptionHandler {
 		ExceptionResponse response = new ExceptionResponse(
 				ex.getMessage(),
 				req.getDescription(false), LocalDateTime.now());
-//		response.setMessage(ex.getMessage());
+		// response.setMessage(ex.getMessage());
 		return ResponseEntity.ok(response);
 	}
 
