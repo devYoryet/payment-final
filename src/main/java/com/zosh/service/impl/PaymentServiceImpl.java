@@ -131,15 +131,20 @@ public class PaymentServiceImpl implements PaymentService {
     // 🇨🇱 DETERMINAR PROVEEDOR CHILENO
     private String determineChileanProvider(PaymentMethod method) {
         switch (method) {
-            case RAZORPAY:
-                return "webpay"; // Usar WebPay como default
-            case STRIPE:
-                return "onepay";
-            default:
-                // Rotar entre proveedores chilenos
+            case CHILE_PAY:
+                // Para CHILE_PAY, rotar entre todos los proveedores chilenos
                 String[] providers = { "webpay", "onepay", "mercadopago", "khipu", "flow" };
                 int index = (int) (System.currentTimeMillis() % providers.length);
                 return providers[index];
+
+            case RAZORPAY:
+                return "webpay"; // Usar WebPay como fallback
+
+            case STRIPE:
+                return "onepay"; // Usar OnePay como fallback
+
+            default:
+                return "webpay"; // Default seguro
         }
     }
 
